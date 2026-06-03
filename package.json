@@ -1,0 +1,18 @@
+{
+  "name": "medclues-erp-root",
+  "version": "1.0.0",
+  "scripts": {
+    "install:all": "npm install --prefix frontend && pip install -r backend/requirements.txt && npm install --prefix pms/frontend",
+    "frontend": "npm run dev --prefix frontend",
+    "backend": "cd backend && ..\\.venv\\Scripts\\uvicorn app.main:app --reload --host 127.0.0.1 --port 8000",
+    "pms:frontend": "npm run dev --prefix pms/frontend",
+    "pms:admin": "npm run dev --prefix pms/admin",
+    "pms:backend": "cd pms/fastapi_back && ..\\..\\.venv\\Scripts\\python -m uvicorn main:app --host 127.0.0.1 --port 5000 --reload",
+    "seed": "cd backend && ..\\.venv\\Scripts\\python seed.py",
+    "dev": "npx concurrently \"npm run frontend\" \"npm run backend\"",
+    "dev:all": "npx concurrently \"npm run frontend\" \"npm run backend\" \"npm run pms:frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

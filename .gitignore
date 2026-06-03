@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Database & Logs
+*.db
+*.sqlite3
+*.log
+
+# IDE & AI folders
+.vscode/
+.idea/
+brain/
+scratch/
+.gemini/
+
+# Environment
+.env
+.env.local
+.DS_Store
