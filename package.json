@@ -9,7 +9,7 @@
     "seed": "cd backend && ..\\.venv\\Scripts\\python seed.py",
     "dev": "npx concurrently \"npm run frontend\" \"npm run backend\"",
     "dev:all": "npx concurrently \"npm run frontend\" \"npm run backend\" \"npm run pms:frontend\"",
-    "build": "npm run build --prefix frontend && npm run build --prefix pms/frontend",
+    "build": "npm install --prefix frontend && npm run build --prefix frontend && npm install --prefix pms/frontend && npm run build --prefix pms/frontend",
     "start": "npx concurrently \"npm run start --prefix frontend\" \"npm run backend\""
   },
   "devDependencies": {
