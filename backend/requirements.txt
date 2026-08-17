@@ -21,5 +21,6 @@ websockets
 python-dotenv
 pandas
 openpyxl
+email-validator
 aio-pika
 
