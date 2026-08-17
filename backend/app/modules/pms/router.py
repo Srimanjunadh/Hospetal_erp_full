@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Header, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, Header, UploadFile, File, Form, Request
 from typing import List, Optional
 import json
 import psycopg2
@@ -14,22 +14,83 @@ router = APIRouter()
 
 
 def get_db():
-    db_url = os.getenv("DATABASE_URL")
-    if db_url and db_url.startswith("postgresql+asyncpg://"):
-        db_url = db_url.replace("postgresql+asyncpg://", "postgresql://")
+    db_url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./medclues.db")
+    
+    if "sqlite" in db_url or not db_url:
+        import sqlite3
+        # Resolve SQLite path relative to backend root
+        db_relative_path = db_url.replace("sqlite+aiosqlite:///", "").replace("sqlite:///", "")
+        if not os.path.isabs(db_relative_path.replace("./", "")):
+            backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+            db_filename = db_relative_path.replace("./", "")
+            db_path = os.path.join(backend_dir, db_filename)
+        else:
+            db_path = db_relative_path
+
+        class SQLiteCursorWrapper:
+            def __init__(self, sqlite_cursor):
+                self.cursor = sqlite_cursor
+            def execute(self, query, params=None):
+                modified_query = query.replace("%s", "?")
+                if params is not None:
+                    self.cursor.execute(modified_query, params)
+                else:
+                    self.cursor.execute(modified_query)
+            def fetchone(self):
+                row = self.cursor.fetchone()
+                return dict(row) if row else None
+            def fetchall(self):
+                rows = self.cursor.fetchall()
+                return [dict(r) for r in rows]
+            @property
+            def description(self):
+                return self.cursor.description
+            def close(self):
+                self.cursor.close()
+            def __getattr__(self, name):
+                return getattr(self.cursor, name)
+
+        class SQLiteConnectionWrapper:
+            def __init__(self, conn):
+                self.conn = conn
+            def cursor(self, *args, **kwargs):
+                c = self.conn.cursor()
+                return SQLiteCursorWrapper(c)
+            def commit(self):
+                self.conn.commit()
+            def rollback(self):
+                self.conn.rollback()
+            def close(self):
+                self.conn.close()
+            def __getattr__(self, name):
+                return getattr(self.conn, name)
+
+        try:
+            conn = sqlite3.connect(db_path, check_same_thread=False)
+            conn.execute('PRAGMA journal_mode=WAL;')
+            conn.execute('PRAGMA synchronous=NORMAL;')
+            conn.row_factory = sqlite3.Row
+            yield SQLiteConnectionWrapper(conn)
+        except Exception as e:
+            print(f"SQLITE CONNECTION ERROR: {e}")
+            raise e
+        finally:
+            if 'conn' in locals():
+                conn.close()
+    else:
+        if db_url.startswith("postgresql+asyncpg://"):
+            db_url = db_url.replace("postgresql+asyncpg://", "postgresql://")
         db_url = db_url.replace("ssl=require", "sslmode=require")
-        
-    try:
-        conn = psycopg2.connect(db_url)
-        # Use RealDictCursor so rows behave like dictionaries
-        conn.cursor_factory = RealDictCursor
-        yield conn
-    except Exception as e:
-        print(f"DATABASE CONNECTION ERROR: {e}")
-        raise e
-    finally:
-        if 'conn' in locals():
-            conn.close()
+        try:
+            conn = psycopg2.connect(db_url)
+            conn.cursor_factory = RealDictCursor
+            yield conn
+        except Exception as e:
+            print(f"DATABASE CONNECTION ERROR: {e}")
+            raise e
+        finally:
+            if 'conn' in locals():
+                conn.close()
 
 # --- Doctor Routes ---
 
@@ -38,17 +99,18 @@ async def list_doctors(db = Depends(get_db)):
     try:
         cursor = db.cursor()
         cursor.execute("""
-            SELECT d.*, u.name, u.email, u.phone, h.name as hospitalName
+            SELECT d.*, h.name as hospitalName
             FROM doctors d 
-            JOIN users u ON d.user_id = u.id
             LEFT JOIN hospitals h ON d.hospital_id = h.id
         """)
+        rows = cursor.fetchall()
+        print(f"PMS /doctor/list found {len(rows)} rows", flush=True)
         doctors = []
-        for row in cursor.fetchall():
+        for row in rows:
             doc = dict(row)
             doc["_id"] = str(doc["id"])
-            doc["speciality"] = doc.get("specialization")
-            doc["degree"] = doc.get("qualification") or "MBBS, MD"
+            doc["speciality"] = doc.get("speciality") or doc.get("specialization")
+            doc["degree"] = doc.get("degree") or doc.get("qualification") or "MBBS, MD"
             doc["available"] = True if doc.get("status") == "on-duty" else False
             doctors.append(doc)
         return {"success": True, "doctors": doctors}
@@ -209,9 +271,9 @@ async def register_user(data: dict, db = Depends(get_db)):
             pass
 
     cursor.execute("""
-        INSERT INTO users (username, name, email, role, hashed_password, cleartext_password, phone, age, location, hospital_id, assigned_nurse_id, created_at)
-        VALUES (%s, %s, %s, 'patient', %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
-    """, (email, name, email, hashed_pw, password, phone, age, str(data.get("address", "")), target_hosp_id, assigned_nurse_id))
+        INSERT INTO users (username, name, email, role, hashed_password, phone, age, location, hospital_id, assigned_nurse_id, created_at)
+        VALUES (%s, %s, %s, 'patient', %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+    """, (email, name, email, hashed_pw, phone, age, str(data.get("address", "")), target_hosp_id, assigned_nurse_id))
     db.commit()
     
     # Patient record is implied by role='patient' in this system
@@ -219,36 +281,111 @@ async def register_user(data: dict, db = Depends(get_db)):
     token = create_access_token(data={"sub": email})
     return {"success": True, "token": token}
 
+import random
+import time
+
+# In-memory store for OTPs: { "email": {"otp": "123456", "expires_at": timestamp} }
+OTP_STORE = {}
+
 @router.post("/user/forgot-password")
 async def forgot_password(data: dict, db = Depends(get_db)):
     email = data.get("email")
     cursor = db.cursor()
-    cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
-    if not cursor.fetchone():
+    cursor.execute("SELECT id, name FROM users WHERE email = %s", (email,))
+    user = cursor.fetchone()
+    
+    if not user:
         return {"success": False, "message": "User not found"}
-    return {"success": True, "message": "Password reset instructions sent (Simulated)"}
+        
+    # Generate 6-digit OTP
+    otp = str(random.randint(100000, 999999))
+    
+    # Store OTP with 10-minute expiry
+    OTP_STORE[email] = {
+        "otp": otp,
+        "expires_at": time.time() + 600
+    }
+    
+    # Send email
+    try:
+        from app.modules.pms.services.email_service import send_password_reset_otp
+        result = await send_password_reset_otp(email, otp, user["name"])
+        if not result.get("success"):
+            return result
+        print(f"OTP sent to {email}: {otp}")
+    except Exception as e:
+        print(f"Failed to send OTP email: {e}")
+        return {"success": False, "message": "Failed to send OTP email. Please try again later."}
+        
+    return {"success": True, "message": "Password reset OTP sent to your email"}
+
+@router.post("/user/reset-password")
+async def reset_password(data: dict, db = Depends(get_db)):
+    email = data.get("email")
+    otp_input = data.get("otp")
+    new_password = data.get("newPassword")
+    
+    if not email or not otp_input or not new_password:
+        return {"success": False, "message": "Missing required fields"}
+        
+    # Verify OTP
+    stored_data = OTP_STORE.get(email)
+    if not stored_data:
+        return {"success": False, "message": "No OTP requested for this email"}
+        
+    if time.time() > stored_data["expires_at"]:
+        del OTP_STORE[email]
+        return {"success": False, "message": "OTP has expired. Please request a new one."}
+        
+    if stored_data["otp"] != otp_input:
+        return {"success": False, "message": "Invalid OTP"}
+        
+    # OTP is valid, update password
+    cursor = db.cursor()
+    hashed_pw = get_password_hash(new_password)
+    
+    try:
+        cursor.execute(
+            "UPDATE users SET hashed_password = %s WHERE email = %s",
+            (hashed_pw, email)
+        )
+        db.commit()
+        # Clear the OTP
+        del OTP_STORE[email]
+        return {"success": True, "message": "Password reset successfully! You can now login."}
+    except Exception as e:
+        print(f"Database error during password reset: {e}")
+        return {"success": False, "message": "Failed to reset password"}
 
 @router.post("/user/login")
 async def login_user(data: dict, db = Depends(get_db)):
     email = data.get("email")
     password = data.get("password")
     
+    print(f"DEBUG: login_user called with email={email}, password={password}", flush=True)
+    
     cursor = db.cursor()
     cursor.execute("SELECT * FROM users WHERE email = %s OR username = %s", (email, email))
     user = cursor.fetchone()
     
-    if not user or not verify_password(password, user["hashed_password"]):
-        # Try cleartext fallback if migration was recent
-        if user and user["cleartext_password"] == password:
-            pass
-        else:
-            return {"success": False, "message": "Invalid email or password"}
+    print(f"DEBUG: user found: {user is not None}", flush=True)
+    
+    is_valid_pwd = False
+    if user:
+        print(f"DEBUG: user dict: {user}", flush=True)
+        is_valid_pwd = verify_password(password, user["hashed_password"])
+        print(f"DEBUG: verify_password result: {is_valid_pwd}", flush=True)
+    
+    if not user or not is_valid_pwd:
+        print("DEBUG: Returning invalid email or password", flush=True)
+        return {"success": False, "message": "Invalid email or password"}
             
     token = create_access_token(data={"sub": user["email"]})
+    print(f"DEBUG: Returning success", flush=True)
     return {"success": True, "token": token}
 
 @router.get("/user/get-profile")
-async def get_profile(token: str = Header(None), db = Depends(get_db)):
+async def get_profile(request: Request, token: str = Header(None), db = Depends(get_db)):
     if not token:
         return {"success": False, "message": "Token missing"}
         
@@ -262,12 +399,110 @@ async def get_profile(token: str = Header(None), db = Depends(get_db)):
         return {"success": False, "message": "Invalid Session. Please login again."}
 
     cursor = db.cursor()
-    cursor.execute("SELECT id, name, email, phone, role FROM users WHERE email = %s", (email,))
+    cursor.execute("SELECT id, name, email, phone, role, age, location, gender, dob, blood_group, image FROM users WHERE email = %s", (email,))
     user = cursor.fetchone()
     if not user:
         return {"success": False, "message": "User not found"}
         
-    return {"success": True, "userData": dict(user)}
+    user_dict = dict(user)
+    
+    # Parse address from location
+    location_str = user_dict.get("location") or ""
+    address_obj = {"line1": "", "line2": ""}
+    if location_str:
+        try:
+            parsed = json.loads(location_str)
+            if isinstance(parsed, dict):
+                address_obj["line1"] = parsed.get("line1", "")
+                address_obj["line2"] = parsed.get("line2", "")
+            else:
+                address_obj["line1"] = location_str
+        except Exception:
+            address_obj["line1"] = location_str
+            
+    user_dict["address"] = address_obj
+    
+    # Map snake_case to camelCase
+    user_dict["bloodGroup"] = user_dict.pop("blood_group", None) or ""
+    user_dict["gender"] = user_dict.get("gender") or "Not Selected"
+    user_dict["dob"] = user_dict.get("dob") or "Not Selected"
+    user_dict["age"] = user_dict.get("age") or ""
+    
+    # Format absolute URL for image
+    img_path = user_dict.get("image")
+    if img_path:
+        if img_path.startswith("/uploads"):
+            base_url = str(request.base_url).rstrip("/")
+            user_dict["image"] = f"{base_url}{img_path}"
+    else:
+        import urllib.parse
+        encoded_name = urllib.parse.quote(user_dict["name"] or "User")
+        user_dict["image"] = f"https://ui-avatars.com/api/?name={encoded_name}&background=0ea5e9&color=ffffff&size=256&rounded=true&bold=true"
+        
+    return {"success": True, "userData": user_dict}
+
+@router.post("/user/update-profile")
+async def update_profile(
+    request: Request,
+    name: str = Form(...),
+    phone: str = Form(...),
+    address: str = Form(...),
+    gender: str = Form(...),
+    dob: str = Form(...),
+    age: str = Form(None),
+    bloodGroup: str = Form(None),
+    image: Optional[UploadFile] = File(None),
+    token: str = Header(None),
+    db = Depends(get_db)
+):
+    if not token:
+        return {"success": False, "message": "Token missing"}
+    try:
+        from jose import jwt
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email = payload.get("sub")
+    except:
+        return {"success": False, "message": "Invalid Session. Please login again."}
+
+    cursor = db.cursor()
+    cursor.execute("SELECT id, image FROM users WHERE email = %s", (email,))
+    user = cursor.fetchone()
+    if not user:
+        return {"success": False, "message": "User not found"}
+
+    user_id = user["id"]
+    current_image = user.get("image")
+
+    image_db_path = current_image
+    if image:
+        import uuid
+        filename = f"user_{user_id}_{uuid.uuid4().hex[:8]}_{image.filename}"
+        
+        # Ensure static uploads dir exists
+        os.makedirs(os.path.join("app", "static", "uploads"), exist_ok=True)
+        file_path = os.path.join("app", "static", "uploads", filename)
+        
+        contents = await image.read()
+        with open(file_path, "wb") as f:
+            f.write(contents)
+        image_db_path = f"/uploads/{filename}"
+
+    # Parse age
+    age_val = None
+    if age:
+        try:
+            age_val = int(age)
+        except ValueError:
+            pass
+
+    cursor.execute("""
+        UPDATE users 
+        SET name = %s, phone = %s, location = %s, gender = %s, dob = %s, age = %s, blood_group = %s, image = %s
+        WHERE id = %s
+    """, (name, phone, address, gender, dob, age_val, bloodGroup, image_db_path, user_id))
+    db.commit()
+
+    return {"success": True, "message": "Profile Updated Successfully"}
 
 @router.get("/user/saved-profiles")
 async def get_saved_profiles(token: str = Header(None), db = Depends(get_db)):
@@ -406,6 +641,40 @@ async def book_appointment(
     new_id = new_id_row["id"] if new_id_row else None
     db.commit()
     
+    try:
+        # Fetch necessary details for email
+        cursor.execute("""
+            SELECT u.name AS patient_name, u.email AS patient_email,
+                   d.specialization AS speciality,
+                   u_doc.name AS doctor_name,
+                   h.name AS hospital_name, h.location AS hospital_location
+            FROM users u
+            JOIN doctors d ON d.id = %s
+            JOIN users u_doc ON d.user_id = u_doc.id
+            LEFT JOIN hospitals h ON h.id = %s
+            WHERE u.id = %s
+        """, (doc_id, hospital_id, patient_id))
+        email_info = cursor.fetchone()
+
+        if email_info and email_info["patient_email"]:
+            from app.modules.pms.services.email_service import send_appointment_confirmation
+            formatted_date = slotDate.replace("_", "/") if slotDate else "N/A"
+            email_details = {
+                "patientName": email_info["patient_name"],
+                "doctorName": email_info["doctor_name"],
+                "speciality": email_info["speciality"] or "General",
+                "date": formatted_date,
+                "time": slotTime or "N/A",
+                "fee": 50.0,
+                "hospitalName": email_info["hospital_name"] or "MediChain Hospital",
+                "hospitalLocation": email_info["hospital_location"] or "Apollo Hospitals - Health City, Arilova, Visakhapatnam, Andhra Pradesh 530040",
+                "tokenNumber": new_id
+            }
+            await send_appointment_confirmation(email_info["patient_email"], email_details)
+            print(f"Appointment confirmation email sent to {email_info['patient_email']}")
+    except Exception as e:
+        print(f"Failed to send confirmation email: {e}")
+    
     return {"success": True, "message": "Appointment booked successfully!", "appointmentId": new_id}
 
 async def auto_reschedule_expired_appointments(db, user_id: int = None):
@@ -474,7 +743,7 @@ async def auto_reschedule_expired_appointments(db, user_id: int = None):
             tomorrow_day_str = tomorrow_dt.strftime("%Y-%m-%d")
             cursor.execute("""
                 SELECT MAX(token_number) as max_token FROM appointments 
-                WHERE doctor_id = %s AND scheduled_at LIKE %s
+                WHERE doctor_id = %s AND CAST(scheduled_at AS TEXT) LIKE %s
             """, (appt['doctor_id'], tomorrow_day_str + "%"))
             token_row = cursor.fetchone()
             new_token = (token_row['max_token'] or 0) + 1 if token_row else 1

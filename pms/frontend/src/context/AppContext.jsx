@@ -23,7 +23,7 @@ const AppContextProvider = (props) => {
         const hostname = window.location.hostname
         const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1'
         const isLocalNetworkIP = /^192\.168\.|^10\.|^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)
-        const backendPort = import.meta.env.VITE_BACKEND_PORT || '5000'
+        const backendPort = import.meta.env.VITE_BACKEND_PORT || '8000'
 
         // If accessing from local network IP (e.g., 192.168.x.x), use that IP for backend
         if (isLocalNetworkIP) {

@@ -1,0 +1,370 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: pms-postgres-prod
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres_prod_pass
+      - POSTGRES_DB=medclues_prod
+    volumes:
+      - pg-data-prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d medclues_prod"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: pms-rabbitmq-prod
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  gateway:
+    build:
+      context: .
+      dockerfile: microservices/gateway/Dockerfile
+      target: production
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres_prod_pass@db:5432/medclues_prod
+      - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:5174,http://localhost:5175
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      identity-service:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  identity-service:
+    build:
+      context: .
+      dockerfile: microservices/identity/Dockerfile
+      target: production
+    ports:
+      - "8001:8001"
+    environment:
+      - PORT=8001
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres_prod_pass@db:5432/medclues_prod
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  organization-service:
+    build:
+      context: .
+      dockerfile: microservices/organization/Dockerfile
+      target: production
+    ports:
+      - "8002:8002"
+    environment:
+      - PORT=8002
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres_prod_pass@db:5432/medclues_prod
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  hospital-service:
+    build:
+      context: .
+      dockerfile: microservices/hospital/Dockerfile
+      target: production
+    ports:
+      - "8003:8003"
+    environment:
+      - PORT=8003
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres_prod_pass@db:5432/medclues_prod
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  hr-service:
+    build:
+      context: .
+      dockerfile: microservices/hr/Dockerfile
+      target: production
+    ports:
+      - "8004:8004"
+    environment:
+      - PORT=8004
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres_prod_pass@db:5432/medclues_prod
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  doctor-service:
+    build:
+      context: .
+      dockerfile: microservices/doctor/Dockerfile
+      target: production
+    ports:
+      - "8005:8005"
+    environment:
+      - PORT=8005
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres_prod_pass@db:5432/medclues_prod
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  patient-service:
+    build:
+      context: .
+      dockerfile: microservices/patient/Dockerfile
+      target: production
+    ports:
+      - "8006:8006"
+    environment:
+      - PORT=8006
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres_prod_pass@db:5432/medclues_prod
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8006/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  appointment-service:
+    build:
+      context: .
+      dockerfile: microservices/appointment/Dockerfile
+      target: production
+    ports:
+      - "8007:8007"
+    environment:
+      - PORT=8007
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres_prod_pass@db:5432/medclues_prod
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8007/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  medical-record-service:
+    build:
+      context: .
+      dockerfile: microservices/medical_record/Dockerfile
+      target: production
+    ports:
+      - "8008:8008"
+    environment:
+      - PORT=8008
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres_prod_pass@db:5432/medclues_prod
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8008/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  billing-service:
+    build:
+      context: .
+      dockerfile: microservices/billing/Dockerfile
+      target: production
+    ports:
+      - "8009:8009"
+    environment:
+      - PORT=8009
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres_prod_pass@db:5432/medclues_prod
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8009/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  finance-service:
+    build:
+      context: .
+      dockerfile: microservices/finance/Dockerfile
+      target: production
+    ports:
+      - "8010:8010"
+    environment:
+      - PORT=8010
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres_prod_pass@db:5432/medclues_prod
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8010/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  inventory-service:
+    build:
+      context: .
+      dockerfile: microservices/inventory/Dockerfile
+      target: production
+    ports:
+      - "8011:8011"
+    environment:
+      - PORT=8011
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres_prod_pass@db:5432/medclues_prod
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8011/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: microservices/notification/Dockerfile
+      target: production
+    ports:
+      - "8012:8012"
+    environment:
+      - PORT=8012
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres_prod_pass@db:5432/medclues_prod
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8012/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  reporting-service:
+    build:
+      context: .
+      dockerfile: microservices/reporting/Dockerfile
+      target: production
+    ports:
+      - "8013:8013"
+    environment:
+      - PORT=8013
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres_prod_pass@db:5432/medclues_prod
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8013/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  analytics-service:
+    build:
+      context: .
+      dockerfile: microservices/analytics/Dockerfile
+      target: production
+    ports:
+      - "8014:8014"
+    environment:
+      - PORT=8014
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres_prod_pass@db:5432/medclues_prod
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8014/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  pg-data-prod:

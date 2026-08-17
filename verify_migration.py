@@ -1,11 +1,29 @@
+import os
+import psycopg2
 import sqlite3
+from pathlib import Path
+from dotenv import load_dotenv
 
-conn = sqlite3.connect('C:/Users/ASUS/OneDrive/Desktop/ERP/backend/medclues.db')
+load_dotenv()
+
+db_url = os.getenv("DATABASE_URL", "sqlite:///backend/medclues.db")
+
+if db_url.startswith("postgresql://") or db_url.startswith("postgresql+asyncpg://"):
+    parsed_url = db_url.replace("postgresql+asyncpg://", "postgresql://")
+    parsed_url = parsed_url.replace("ssl=require", "sslmode=require")
+    conn = psycopg2.connect(parsed_url)
+else:
+    db_relative_path = db_url.replace("sqlite+aiosqlite:///", "").replace("sqlite:///", "")
+    db_path = Path(__file__).parent / db_relative_path.replace("./", "")
+    if not db_path.exists():
+        db_path = Path(__file__).parent / "backend" / "medclues.db"
+    conn = sqlite3.connect(db_path)
+
 c = conn.cursor()
 
 print("=== ERP HOSPITALS (from PMS) ===")
 c.execute("""
-    SELECT h.id, h.name, h.location, h.node_code, u.username as admin_username, u.cleartext_password as admin_pw
+    SELECT h.id, h.name, h.location, h.node_code, u.username as admin_username, u.hashed_password as admin_pw
     FROM hospitals h
     LEFT JOIN users u ON h.admin_id = u.id
     ORDER BY h.id

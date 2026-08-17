@@ -1,52 +1,12 @@
 {
   "1": {
-    "erp_id": 12,
+    "erp_id": 1,
     "name": "NovaCare Medical Center",
     "node_code": "4486"
   },
   "2": {
-    "erp_id": 13,
+    "erp_id": 2,
     "name": "Zenith Multispecialty Hospital",
     "node_code": "5459"
-  },
-  "3": {
-    "erp_id": 14,
-    "name": "Lifeline Advanced Hospitals",
-    "node_code": "7580"
-  },
-  "4": {
-    "erp_id": 15,
-    "name": "MediCore Health Institute",
-    "node_code": "9436"
-  },
-  "5": {
-    "erp_id": 16,
-    "name": "Apex Cure Hospitals",
-    "node_code": "3382"
-  },
-  "6": {
-    "erp_id": 17,
-    "name": "GreenLeaf Medical Center",
-    "node_code": "1771"
-  },
-  "7": {
-    "erp_id": 18,
-    "name": "HealTrust Super Speciality Hospital",
-    "node_code": "6400"
-  },
-  "8": {
-    "erp_id": 19,
-    "name": "UrbanCare Medical Institute",
-    "node_code": "3647"
-  },
-  "9": {
-    "erp_id": 20,
-    "name": "VitalEdge Hospitals",
-    "node_code": "8802"
-  },
-  "10": {
-    "erp_id": 21,
-    "name": "EverCare Health City",
-    "node_code": "3828"
   }
 }

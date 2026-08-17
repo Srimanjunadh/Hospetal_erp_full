@@ -15,7 +15,6 @@ async def seed():
             name="Manju SuperAdmin",
             username="Manju",
             hashed_password=get_password_hash("1122"),
-            cleartext_password="1122",
             role="super_admin"
         )
         db.add(manju_user)
@@ -37,7 +36,6 @@ async def seed():
             name="Alice Admin",
             username="ADM1001",
             hashed_password=get_password_hash("admin123"),
-            cleartext_password="admin123",
             role="hospital_admin",
             hospital_id=hospital.id
         )
@@ -50,7 +48,6 @@ async def seed():
             name="Dr. Smith",
             username="DOC1001",
             hashed_password=get_password_hash("doc123"),
-            cleartext_password="doc123",
             role="doctor",
             hospital_id=hospital.id
         )
@@ -72,7 +69,6 @@ async def seed():
             name="Nurse Joy",
             username="NRS1001",
             hashed_password=get_password_hash("nurse123"),
-            cleartext_password="nurse123",
             role="nurse",
             hospital_id=hospital.id
         )
@@ -83,7 +79,6 @@ async def seed():
             name="Lab Technician",
             username="LAB1001",
             hashed_password=get_password_hash("lab123"),
-            cleartext_password="lab123",
             role="lab",
             hospital_id=hospital.id
         )

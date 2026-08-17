@@ -42,7 +42,8 @@ const ForgotPassword = () => {
         toast.error(data.message)
       }
     } catch (error) {
-      toast.error('Failed to send OTP. Please try again.')
+      const errorMsg = error.response?.data?.detail || error.response?.data?.message || 'Failed to send OTP. Please try again.'
+      toast.error(errorMsg)
       console.error(error)
     } finally {
       setIsLoading(false)
@@ -114,7 +115,9 @@ const ForgotPassword = () => {
         setStep(3) // Go to password reset step
       }
     } catch (error) {
-      toast.error('Failed to verify OTP')
+      const errorMsg = error.response?.data?.detail || error.response?.data?.message || 'Failed to verify OTP'
+      toast.error(errorMsg)
+      console.error(error)
     } finally {
       setIsLoading(false)
     }
@@ -155,7 +158,8 @@ const ForgotPassword = () => {
         toast.error(data.message)
       }
     } catch (error) {
-      toast.error('Failed to reset password. Please try again.')
+      const errorMsg = error.response?.data?.detail || error.response?.data?.message || 'Failed to reset password. Please try again.'
+      toast.error(errorMsg)
       console.error(error)
     } finally {
       setIsLoading(false)
@@ -178,7 +182,9 @@ const ForgotPassword = () => {
         toast.error(data.message)
       }
     } catch (error) {
-      toast.error('Failed to resend OTP')
+      const errorMsg = error.response?.data?.detail || error.response?.data?.message || 'Failed to resend OTP'
+      toast.error(errorMsg)
+      console.error(error)
     } finally {
       setIsLoading(false)
     }

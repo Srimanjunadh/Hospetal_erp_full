@@ -1,0 +1,271 @@
+version: '3.8'
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: pms-rabbitmq-dev
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+
+  gateway:
+    build:
+      context: .
+      dockerfile: microservices/gateway/Dockerfile
+      target: development
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - DATABASE_URL=sqlite+aiosqlite:////workspace/data/gateway.db
+      - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhost:5174,http://localhost:5175
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    volumes:
+      - ./backend/app:/workspace/app
+      - db-data-dev:/workspace/data
+    depends_on:
+      - rabbitmq
+
+  identity-service:
+    build:
+      context: .
+      dockerfile: microservices/identity/Dockerfile
+      target: development
+    ports:
+      - "8001:8001"
+    environment:
+      - PORT=8001
+      - DATABASE_URL=sqlite+aiosqlite:////workspace/data/identity.db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    volumes:
+      - ./backend/app:/workspace/app
+      - db-data-dev:/workspace/data
+    depends_on:
+      - rabbitmq
+
+  organization-service:
+    build:
+      context: .
+      dockerfile: microservices/organization/Dockerfile
+      target: development
+    ports:
+      - "8002:8002"
+    environment:
+      - PORT=8002
+      - DATABASE_URL=sqlite+aiosqlite:////workspace/data/organization.db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    volumes:
+      - ./backend/app:/workspace/app
+      - db-data-dev:/workspace/data
+    depends_on:
+      - rabbitmq
+
+  hospital-service:
+    build:
+      context: .
+      dockerfile: microservices/hospital/Dockerfile
+      target: development
+    ports:
+      - "8003:8003"
+    environment:
+      - PORT=8003
+      - DATABASE_URL=sqlite+aiosqlite:////workspace/data/hospital.db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    volumes:
+      - ./backend/app:/workspace/app
+      - db-data-dev:/workspace/data
+    depends_on:
+      - rabbitmq
+
+  hr-service:
+    build:
+      context: .
+      dockerfile: microservices/hr/Dockerfile
+      target: development
+    ports:
+      - "8004:8004"
+    environment:
+      - PORT=8004
+      - DATABASE_URL=sqlite+aiosqlite:////workspace/data/hr.db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    volumes:
+      - ./backend/app:/workspace/app
+      - db-data-dev:/workspace/data
+    depends_on:
+      - rabbitmq
+
+  doctor-service:
+    build:
+      context: .
+      dockerfile: microservices/doctor/Dockerfile
+      target: development
+    ports:
+      - "8005:8005"
+    environment:
+      - PORT=8005
+      - DATABASE_URL=sqlite+aiosqlite:////workspace/data/doctor.db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    volumes:
+      - ./backend/app:/workspace/app
+      - db-data-dev:/workspace/data
+    depends_on:
+      - rabbitmq
+
+  patient-service:
+    build:
+      context: .
+      dockerfile: microservices/patient/Dockerfile
+      target: development
+    ports:
+      - "8006:8006"
+    environment:
+      - PORT=8006
+      - DATABASE_URL=sqlite+aiosqlite:////workspace/data/patient.db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    volumes:
+      - ./backend/app:/workspace/app
+      - db-data-dev:/workspace/data
+    depends_on:
+      - rabbitmq
+
+  appointment-service:
+    build:
+      context: .
+      dockerfile: microservices/appointment/Dockerfile
+      target: development
+    ports:
+      - "8007:8007"
+    environment:
+      - PORT=8007
+      - DATABASE_URL=sqlite+aiosqlite:////workspace/data/appointment.db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    volumes:
+      - ./backend/app:/workspace/app
+      - db-data-dev:/workspace/data
+    depends_on:
+      - rabbitmq
+
+  medical-record-service:
+    build:
+      context: .
+      dockerfile: microservices/medical_record/Dockerfile
+      target: development
+    ports:
+      - "8008:8008"
+    environment:
+      - PORT=8008
+      - DATABASE_URL=sqlite+aiosqlite:////workspace/data/medical_record.db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    volumes:
+      - ./backend/app:/workspace/app
+      - db-data-dev:/workspace/data
+    depends_on:
+      - rabbitmq
+
+  billing-service:
+    build:
+      context: .
+      dockerfile: microservices/billing/Dockerfile
+      target: development
+    ports:
+      - "8009:8009"
+    environment:
+      - PORT=8009
+      - DATABASE_URL=sqlite+aiosqlite:////workspace/data/billing.db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    volumes:
+      - ./backend/app:/workspace/app
+      - db-data-dev:/workspace/data
+    depends_on:
+      - rabbitmq
+
+  finance-service:
+    build:
+      context: .
+      dockerfile: microservices/finance/Dockerfile
+      target: development
+    ports:
+      - "8010:8010"
+    environment:
+      - PORT=8010
+      - DATABASE_URL=sqlite+aiosqlite:////workspace/data/finance.db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    volumes:
+      - ./backend/app:/workspace/app
+      - db-data-dev:/workspace/data
+    depends_on:
+      - rabbitmq
+
+  inventory-service:
+    build:
+      context: .
+      dockerfile: microservices/inventory/Dockerfile
+      target: development
+    ports:
+      - "8011:8011"
+    environment:
+      - PORT=8011
+      - DATABASE_URL=sqlite+aiosqlite:////workspace/data/inventory.db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    volumes:
+      - ./backend/app:/workspace/app
+      - db-data-dev:/workspace/data
+    depends_on:
+      - rabbitmq
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: microservices/notification/Dockerfile
+      target: development
+    ports:
+      - "8012:8012"
+    environment:
+      - PORT=8012
+      - DATABASE_URL=sqlite+aiosqlite:////workspace/data/notification.db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    volumes:
+      - ./backend/app:/workspace/app
+      - db-data-dev:/workspace/data
+    depends_on:
+      - rabbitmq
+
+  reporting-service:
+    build:
+      context: .
+      dockerfile: microservices/reporting/Dockerfile
+      target: development
+    ports:
+      - "8013:8013"
+    environment:
+      - PORT=8013
+      - DATABASE_URL=sqlite+aiosqlite:////workspace/data/reporting.db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    volumes:
+      - ./backend/app:/workspace/app
+      - db-data-dev:/workspace/data
+    depends_on:
+      - rabbitmq
+
+  analytics-service:
+    build:
+      context: .
+      dockerfile: microservices/analytics/Dockerfile
+      target: development
+    ports:
+      - "8014:8014"
+    environment:
+      - PORT=8014
+      - DATABASE_URL=sqlite+aiosqlite:////workspace/data/analytics.db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    volumes:
+      - ./backend/app:/workspace/app
+      - db-data-dev:/workspace/data
+    depends_on:
+      - rabbitmq
+
+volumes:
+  db-data-dev:

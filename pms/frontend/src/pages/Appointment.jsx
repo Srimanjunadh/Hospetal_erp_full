@@ -83,7 +83,7 @@ const Appointment = () => {
             if (docInfo.available === undefined || docInfo.available === null) {
                 docInfo.available = true
             }
-        } else if (!docInfo && doctors.length > 0) {
+        } else if (!docInfo) {
             // If still not found in doctors list, resolve by id type.
             // Embedded doctors use ids like "emb_56" and should not be sent
             // to endpoints that expect numeric doctor ids.
@@ -701,10 +701,8 @@ const Appointment = () => {
     }, [])
 
     useEffect(() => {
-        if (doctors.length > 0) {
-            fetchDocInfo()
-        }
-    }, [doctors, docId])
+        fetchDocInfo()
+    }, [doctors, docId, location.state])
 
     useEffect(() => {
         if (docInfo) {

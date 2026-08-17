@@ -1,7 +1,6 @@
 import React, { useContext } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppContext } from '../context/AppContext'
-import Banner from './Banner'
 import useScrollAnimation from '../utils/useScrollAnimation'
 
 const ContactLocation = () => {
@@ -161,10 +160,7 @@ const ContactLocation = () => {
                     </div>
                 </div>
 
-                {/* Banner below */}
-                <div className='mt-6 sm:mt-8'>
-                    <Banner />
-                </div>
+
 
             </div>
         </section>

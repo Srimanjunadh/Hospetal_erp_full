@@ -3,8 +3,10 @@ import asyncio
 import sys
 import os
 
-# Add backend to path
-sys.path.append("C:/Users/ASUS/OneDrive/Desktop/ERP/backend")
+from pathlib import Path
+backend_dir = Path(__file__).parent.resolve()
+if str(backend_dir) not in sys.path:
+    sys.path.append(str(backend_dir))
 
 from app.core.sync_bridge import sync_hospital_to_pms
 

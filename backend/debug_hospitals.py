@@ -2,30 +2,42 @@
 import asyncio
 import json
 import os
+import sys
+from pathlib import Path
+from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.future import select
 
-# Use the absolute path to medclues.db
-DB_PATH = "C:/Users/ASUS/OneDrive/Desktop/ERP/backend/medclues.db"
-DATABASE_URL = f"sqlite+aiosqlite:///{DB_PATH}"
+load_dotenv()
 
-# Add the backend path to sys.path so we can import app.models
-import sys
-sys.path.append("C:/Users/ASUS/OneDrive/Desktop/ERP/backend")
+# Add the backend path dynamically
+backend_dir = Path(__file__).parent.resolve()
+if str(backend_dir) not in sys.path:
+    sys.path.append(str(backend_dir))
+    
 from app.models.models import Hospital
+
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///backend/medclues.db")
+if "sqlite" in DATABASE_URL:
+    db_relative_path = DATABASE_URL.replace("sqlite+aiosqlite:///", "").replace("sqlite:///", "")
+    db_path = backend_dir / db_relative_path.replace("./", "")
+    if not db_path.exists():
+        db_path = backend_dir / "medclues.db"
+    DATABASE_URL = f"sqlite+aiosqlite:///{db_path.as_posix()}"
 
 async def check_hospitals():
     engine = create_async_engine(DATABASE_URL)
     async with engine.connect() as conn:
         res = await conn.execute(select(Hospital))
         hospitals = res.fetchall()
-        print(f"--- ERP HOSPITALS (medclues.db) ---")
+        print(f"--- ERP HOSPITALS ---")
         erp_hosp_ids = []
         for h in hospitals:
             print(f"ID: {h.id}, Name: {h.name}, Node: {h.node_code}")
             erp_hosp_ids.append(h.id)
             
-    mapping_path = "C:/Users/ASUS/OneDrive/Desktop/ERP/backend/pms_erp_hospital_mapping.json"
+    # Search for mapping file at root
+    mapping_path = backend_dir.parent / "pms_erp_hospital_mapping.json"
     if os.path.exists(mapping_path):
         with open(mapping_path, 'r') as f:
             mapping = json.load(f)

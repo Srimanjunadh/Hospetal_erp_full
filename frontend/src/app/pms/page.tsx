@@ -4,6 +4,7 @@ import { Activity, Users, ChevronLeft, ExternalLink, ShieldCheck } from "lucide-
 import Link from "next/link";
 
 export default function PMSPortal() {
+  const pmsUrl = process.env.NEXT_PUBLIC_PMS_URL || 'http://localhost:5173';
   return (
     <div style={{ minHeight: '100vh', background: '#ffffff', color: '#000000', fontFamily: 'Inter, sans-serif' }}>
       {/* Navigation */}
@@ -34,7 +35,7 @@ export default function PMSPortal() {
 
         <div style={{ display: 'flex', justifyContent: 'center' }}>
           {/* Patient Portal Card */}
-          <Link href="http://localhost:5173" target="_blank" style={{ textDecoration: 'none', color: 'inherit', maxWidth: '600px', width: '100%' }}>
+          <Link href={pmsUrl} target="_blank" style={{ textDecoration: 'none', color: 'inherit', maxWidth: '600px', width: '100%' }}>
             <motion.div
               whileHover={{ scale: 1.02, backgroundColor: '#f8f8f8' }}
               style={{ 

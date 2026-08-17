@@ -5,11 +5,11 @@ import os
 
 logger = logging.getLogger(__name__)
 
-PMS_BASE_URL = "http://localhost:8000"
-ERP_BASE_URL = "http://localhost:8000"
+PMS_BASE_URL = os.getenv("PMS_BASE_URL", "http://localhost:8000")
+ERP_BASE_URL = os.getenv("ERP_BASE_URL", "http://localhost:8000")
 
 # Load PMS → ERP hospital mapping
-_MAPPING_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "pms_erp_hospital_mapping.json")
+_MAPPING_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "..", "pms_erp_hospital_mapping.json")
 _PMS_TO_ERP_MAPPING: dict = {}
 
 def _save_mapping():
@@ -56,9 +56,9 @@ async def sync_hospital_to_pms(hospital_data: dict):
         from jose import jwt
         import datetime
         
-        # We need the secret from PMS .env, but for now we'll use the one we know
-        PMS_JWT_SECRET = "greatstack" 
-        ADMIN_EMAIL = "medclues123@gmail.com"
+        # We need the secret from PMS .env
+        PMS_JWT_SECRET = os.getenv("PMS_JWT_SECRET", "greatstack") 
+        ADMIN_EMAIL = os.getenv("PMS_ADMIN_EMAIL", "medclues123@gmail.com")
         
         token = jwt.encode({
             "email": ADMIN_EMAIL,

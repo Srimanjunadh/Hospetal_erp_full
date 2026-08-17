@@ -58,7 +58,6 @@ async def reset_system():
                 name="MANJU MASTER",
                 role="super_admin",
                 hashed_password=get_password_hash("1122"),
-                cleartext_password="1122",
                 hospital_id=hosp.id
             )
             db.add(master)
@@ -72,7 +71,6 @@ async def reset_system():
                 name="DR. GOVARDHAN",
                 role="doctor",
                 hashed_password=get_password_hash("1122"),
-                cleartext_password="1122",
                 hospital_id=hosp.id
             )
             db.add(doc_user)
@@ -93,7 +91,6 @@ async def reset_system():
                 name="MANJU (PATIENT)",
                 role="patient",
                 hashed_password=get_password_hash("1122"),
-                cleartext_password="1122",
                 assigned_doctor_id=doc_profile.id,
                 hospital_id=hosp.id
             )

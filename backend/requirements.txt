@@ -21,3 +21,5 @@ websockets
 python-dotenv
 pandas
 openpyxl
+aio-pika
+

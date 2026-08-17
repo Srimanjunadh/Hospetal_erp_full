@@ -37,6 +37,14 @@ function LoginContent() {
     setMounted(true);
   }, []);
 
+  // Sync role state when query parameter loads/changes
+  useEffect(() => {
+    const queryRole = searchParams.get("role") as Role;
+    if (queryRole && ["super_admin", "hospital_admin", "doctor", "nurse", "lab", "patient"].includes(queryRole)) {
+      setRole(queryRole);
+    }
+  }, [searchParams]);
+
   const getTheme = () => {
     switch (role) {
       case "super_admin":
@@ -110,14 +118,12 @@ function LoginContent() {
         localStorage.setItem(`medclues_session_${data.user.role}`, JSON.stringify(sessionData));
         showToast(`Authorized: ${data.user.name}`, "success");
 
-        setTimeout(() => {
           if (data.user.role === "super_admin") router.push("/super-admin");
           else if (data.user.role === "hospital_admin") router.push("/hospital-admin");
           else if (data.user.role === "doctor") router.push("/doctor");
           else if (data.user.role === "nurse") router.push("/nurse");
           else if (data.user.role === "lab") router.push("/lab");
           else router.push("/patient");
-        }, 500);
       } else {
         showToast(data.detail || "Access Denied", "error");
       }

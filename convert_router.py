@@ -1,7 +1,8 @@
 import re
 
-def convert():
-    with open(r"C:\Users\ASUS\OneDrive\Desktop\Hospetal_Full\backend\app\modules\pms\router.py", "r", encoding="utf-8") as f:
+    import os
+    target_path = os.path.join(os.path.dirname(__file__), "backend", "app", "modules", "pms", "router.py")
+    with open(target_path, "r", encoding="utf-8") as f:
         code = f.read()
 
     # Replace import
@@ -77,7 +78,7 @@ def get_db():
 
     code = code.replace(old_insert, new_insert)
 
-    with open(r"C:\Users\ASUS\OneDrive\Desktop\Hospetal_Full\backend\app\modules\pms\router.py", "w", encoding="utf-8") as f:
+    with open(target_path, "w", encoding="utf-8") as f:
         f.write(code)
 
 if __name__ == "__main__":

@@ -282,7 +282,7 @@ export default function GlobalHospitalsPage() {
                        <span style={{ fontSize: '0.65rem', fontWeight: 900 }}>PASSPHRASE</span>
                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#dc2626' }}>
-                             {showPassword ? (selectedHospital.admin?.cleartext_password || "N/A") : "••••••••"}
+                             {showPassword ? (selectedHospital.admin?.cleartext_password || "1122 (Default)") : "••••••••"}
                           </span>
                           <button 
                             onClick={() => setShowPassword(!showPassword)}

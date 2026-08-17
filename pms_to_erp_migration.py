@@ -23,11 +23,19 @@ load_dotenv()
 # CONFIGURATION
 # ============================================================
 ERP_DATABASE_URL = os.getenv("DATABASE_URL").replace("+asyncpg", "")
-PMS_DATABASE_URL = "postgresql://neondb_owner:npg_yoN80LlTYPEF@ep-fragrant-wildflower-amav9yzw-pooler.c-5.us-east-1.aws.neon.tech/neondb?sslmode=require"
+PMS_DATABASE_URL = os.getenv("PMS_DATABASE_URL", "postgresql://neondb_owner:npg_yoN80LlTYPEF@ep-fragrant-wildflower-amav9yzw-pooler.c-5.us-east-1.aws.neon.tech/neondb?sslmode=require")
 
-def hash_password(password: str) -> str:
+def get_password_hash(password: str) -> str:
+    import secrets
     import hashlib
-    return hashlib.sha256(password.encode()).hexdigest()
+    salt = secrets.token_hex(16)
+    hash_bytes = hashlib.pbkdf2_hmac(
+        'sha256',
+        password.encode('utf-8'),
+        salt.encode('utf-8'),
+        100000
+    )
+    return f"{salt}:{hash_bytes.hex()}"
 
 ADMIN_PW = "Admin@1234"
 ADMIN_PW_HASH = "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW"
@@ -102,7 +110,7 @@ async def erp_migrate(pms_hospitals, doctors_by_hosp, erp_conn):
     
     subscription_expiry = datetime.now() + timedelta(days=365)
     
-    for idx, hosp in enumerate(pms_hospitals):
+    for idx, hosp in enumerate(pms_hospitals[:2]):
         pms_id = hosp['id']
         hosp_name = hosp['name']
         hosp_address = hosp.get('address', 'Andhra Pradesh, India')
@@ -115,10 +123,10 @@ async def erp_migrate(pms_hospitals, doctors_by_hosp, erp_conn):
         
         # Insert admin
         admin_id = await erp_conn.fetchval("""
-            INSERT INTO users (username, name, email, role, hashed_password, cleartext_password, phone, created_at)
-            VALUES ($1, $2, $3, 'hospital_admin', $4, $5, $6, NOW()) RETURNING id
+            INSERT INTO users (username, name, email, role, hashed_password, phone, created_at)
+            VALUES ($1, $2, $3, 'hospital_admin', $4, $5, NOW()) RETURNING id
         """, admin_username, admin_name, f"admin{pms_id}@medclues.local", 
-             f"hashed_{admin_password}", admin_password, f"90000{pms_id:05d}")
+             get_password_hash(admin_password), f"90000{pms_id:05d}")
         
         # Insert hospital
         erp_hospital_id = await erp_conn.fetchval("""
@@ -136,7 +144,7 @@ async def erp_migrate(pms_hospitals, doctors_by_hosp, erp_conn):
         
         print(f"   ✓ Registered: {hosp_name} → ERP ID:{erp_hospital_id}, Node:{node_code}")
         
-        hosp_doctors = doctors_by_hosp.get(pms_id, [])
+        hosp_doctors = doctors_by_hosp.get(pms_id, [])[:3]
         for doc in hosp_doctors:
             doc_name = doc['name'].strip()
             doc_spec = doc.get('specialization', 'General Physician').strip()
@@ -150,9 +158,9 @@ async def erp_migrate(pms_hospitals, doctors_by_hosp, erp_conn):
             doc_password = f"Doc@{pms_id}"
             
             doc_user_id = await erp_conn.fetchval("""
-                INSERT INTO users (username, name, role, hashed_password, cleartext_password, phone, hospital_id, created_at)
-                VALUES ($1, $2, 'doctor', $3, $4, $5, $6, NOW()) RETURNING id
-            """, doc_username, doc_name, f"hashed_{doc_password}", doc_password,
+                INSERT INTO users (username, name, role, hashed_password, phone, hospital_id, created_at)
+                VALUES ($1, $2, 'doctor', $3, $4, $5, NOW()) RETURNING id
+            """, doc_username, doc_name, get_password_hash(doc_password),
                  f"98765{doc['id']:05d}", erp_hospital_id)
             
             await erp_conn.execute("""
@@ -165,17 +173,17 @@ async def erp_migrate(pms_hospitals, doctors_by_hosp, erp_conn):
             nurse_username = f"nurse_{pms_id}_{i+1}"
             nurse_password = f"Nurse@{pms_id}"
             await erp_conn.execute("""
-                INSERT INTO users (username, name, role, hashed_password, cleartext_password, phone, hospital_id, created_at)
-                VALUES ($1, $2, 'nurse', $3, $4, $5, $6, NOW())
-            """, nurse_username, nurse_name, f"hashed_{nurse_password}", nurse_password, f"87654{pms_id:04d}{i}", erp_hospital_id)
+                INSERT INTO users (username, name, role, hashed_password, phone, hospital_id, created_at)
+                VALUES ($1, $2, 'nurse', $3, $4, $5, NOW())
+            """, nurse_username, nurse_name, get_password_hash(nurse_password), f"87654{pms_id:04d}{i}", erp_hospital_id)
             
         lab_name = lab_pools[idx % len(lab_pools)]
         lab_username = f"lab_{pms_id}"
         lab_password = f"Lab@{pms_id}"
         await erp_conn.execute("""
-            INSERT INTO users (username, name, role, hashed_password, cleartext_password, phone, hospital_id, created_at)
-            VALUES ($1, $2, 'lab', $3, $4, $5, $6, NOW())
-        """, lab_username, lab_name, f"hashed_{lab_password}", lab_password, f"76543{pms_id:05d}", erp_hospital_id)
+            INSERT INTO users (username, name, role, hashed_password, phone, hospital_id, created_at)
+            VALUES ($1, $2, 'lab', $3, $4, $5, NOW())
+        """, lab_username, lab_name, get_password_hash(lab_password), f"76543{pms_id:05d}", erp_hospital_id)
         
         for blood_group in ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']:
             await erp_conn.execute("""
@@ -183,11 +191,11 @@ async def erp_migrate(pms_hospitals, doctors_by_hosp, erp_conn):
                 VALUES ($1, $2, $3)
             """, erp_hospital_id, blood_group, float((idx % 10) + 5))
             
-    print(f"\n✅ STEP 2 COMPLETE: Registered {len(pms_hospitals)} PMS hospitals in ERP")
+    print(f"\n✅ STEP 2 COMPLETE: Registered 2 PMS hospitals in ERP")
     return pms_to_erp_mapping
 
 def save_mapping(mapping):
-    mapping_file = "C:/Users/ASUS/OneDrive/Desktop/Hospetal_Full/pms_erp_hospital_mapping.json"
+    mapping_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pms_erp_hospital_mapping.json")
     json_mapping = {str(k): v for k, v in mapping.items()}
     with open(mapping_file, 'w') as f:
         json.dump(json_mapping, f, indent=2)

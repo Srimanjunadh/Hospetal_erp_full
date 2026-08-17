@@ -8,7 +8,7 @@ import useScrollAnimation from '../utils/useScrollAnimation'
 const About = () => {
   const [specialties, setSpecialties] = useState([])
   const [loading, setLoading] = useState(true)
-  const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'
+  const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
   const scrollRef = useScrollAnimation()
 
   useEffect(() => {

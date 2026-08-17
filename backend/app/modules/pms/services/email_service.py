@@ -12,64 +12,35 @@ BREVO_APP_NAME = "MediClues+ ERP"
 
 async def send_email(to: str, subject: str, html_content: str, recipient_name: str = "User", sender_name: str = None):
     try:
-        api_key = BREVO_API_KEY
-        sender_email = BREVO_SENDER_EMAIL or os.getenv("EMAIL_USER")
+        smtp_host = os.getenv("EMAIL_HOST", "smtp-relay.brevo.com")
+        smtp_port = int(os.getenv("EMAIL_PORT", "587"))
+        smtp_user = os.getenv("EMAIL_USER")
+        smtp_pass = os.getenv("EMAIL_APP_PASSWORD")
+        sender_email = os.getenv("BREVO_SENDER_EMAIL") or smtp_user
         app_name = BREVO_APP_NAME
         
-        if not api_key:
-            raise Exception("API Key missing")
+        if not smtp_user or not smtp_pass:
+            raise Exception("SMTP credentials not fully configured in .env")
 
-        # Brevo HTTP API v3 endpoint
-        url = "https://api.brevo.com/v3/smtp/email"
-        headers = {
-            "accept": "application/json",
-            "content-type": "application/json",
-            "api-key": api_key
-        }
-        
-        payload = {
-            "sender": {"email": sender_email, "name": sender_name or app_name},
-            "to": [{"email": to, "name": recipient_name}],
-            "subject": subject,
-            "htmlContent": html_content
-        }
+        msg = EmailMessage()
+        msg["From"] = f"{sender_name or app_name} <{sender_email}>"
+        msg["To"] = f"{recipient_name} <{to}>"
+        msg["Subject"] = subject
+        msg.set_content("HTML content received", subtype="html")
+        msg.add_alternative(html_content, subtype="html")
 
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, headers=headers, json=payload, timeout=10.0)
-            
-        if response.status_code == 201:
-            return {"success": True, "message": "Email sent"}
-        else:
-            raise Exception(f"Brevo API error: {response.status_code}")
-
+        await aiosmtplib.send(
+            msg,
+            hostname=smtp_host,
+            port=smtp_port,
+            start_tls=True,
+            username=smtp_user,
+            password=smtp_pass
+        )
+        return {"success": True, "message": "Email sent successfully"}
     except Exception as e:
-        print(f"[WARNING] Brevo HTTP failed: {e}. Trying Gmail SMTP as fallback...")
-        try:
-            # Fallback to Gmail SMTP if Brevo fails
-            gmail_user = os.getenv("EMAIL_USER")
-            gmail_pass = os.getenv("EMAIL_APP_PASSWORD")
-            
-            if not gmail_user or not gmail_pass:
-                return {"success": False, "message": "No configured email routes working"}
-
-            msg = EmailMessage()
-            msg["From"] = f"{sender_name or 'MediClues+'} <{gmail_user}>"
-            msg["To"] = f"{recipient_name} <{to}>"
-            msg["Subject"] = subject
-            msg.set_content("HTML content received", subtype="html") # Fallback plain text
-            msg.add_alternative(html_content, subtype="html")
-
-            await aiosmtplib.send(
-                msg,
-                hostname="smtp.gmail.com",
-                port=587,
-                start_tls=True,
-                username=gmail_user,
-                password=gmail_pass
-            )
-            return {"success": True, "message": "Email sent via fallback"}
-        except Exception as fallback_e:
-            return {"success": False, "message": str(fallback_e)}
+        print(f"[ERROR] Email SMTP failed: {e}")
+        return {"success": False, "message": str(e)}
 
 async def send_password_reset_otp(email: str, otp: str, user_name: str):
     subject = "Password Reset OTP - MediClues"
@@ -88,7 +59,7 @@ async def send_password_reset_otp(email: str, otp: str, user_name: str):
                 </p>
                 <p>If you didn't request this, please ignore this email.</p>
                 <hr style="border: none; border-top: 1px solid #ddd; margin-top: 30px;">
-                <p style="text-align: center; font-size: 12px; color: #666;">© {datetime.now().year} MediClues. All rights reserved.</p>
+                <p style="text-align: center; font-size: 12px; color: #666;">© {datetime.now().year} MedClues. All rights reserved.</p>
             </div>
         </body>
     </html>
@@ -97,7 +68,7 @@ async def send_password_reset_otp(email: str, otp: str, user_name: str):
 
 async def send_appointment_confirmation(email: str, details: dict):
     patient_name = details.get('patientName', 'Patient')
-    hospital_name = details.get('hospitalName', 'MediClues Hospital')
+    hospital_name = details.get('hospitalName', 'MedClues Hospital')
     
     subject = f"Appointment Confirmed - {hospital_name}"
     
@@ -105,61 +76,167 @@ async def send_appointment_confirmation(email: str, details: dict):
     <html>
         <head>
             <style>
-                .medclues-highlight {{
-                    color: #bfdbfe;
+                @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+                body {{
+                    font-family: 'Outfit', sans-serif;
+                    line-height: 1.6;
+                    color: #1e293b;
+                    margin: 0;
+                    padding: 0;
+                    background-color: #f8fafc;
                 }}
+                .container {{
+                    max-width: 600px;
+                    margin: 40px auto;
+                    background: #ffffff;
+                    border-radius: 20px;
+                    overflow: hidden;
+                    box-shadow: 0 10px 40px -10px rgba(0,0,0,0.1);
+                }}
+                .header {{
+                    background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
+                    color: white;
+                    padding: 40px 30px;
+                    text-align: center;
+                }}
+                .header h1 {{
+                    margin: 0;
+                    font-size: 32px;
+                    font-weight: 700;
+                    letter-spacing: -0.5px;
+                }}
+                .header p {{
+                    margin: 10px 0 0 0;
+                    font-size: 16px;
+                    opacity: 0.9;
+                }}
+                .content {{
+                    padding: 40px 30px;
+                }}
+                .success-banner {{
+                    background: linear-gradient(to right, #10b981, #059669);
+                    color: white;
+                    padding: 16px;
+                    border-radius: 12px;
+                    text-align: center;
+                    font-weight: 600;
+                    font-size: 16px;
+                    margin-bottom: 30px;
+                    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);
+                }}
+                .details-card {{
+                    background: #f1f5f9;
+                    border-left: 5px solid #3b82f6;
+                    padding: 25px;
+                    border-radius: 0 12px 12px 0;
+                    margin-bottom: 30px;
+                }}
+                .details-card h2 {{
+                    color: #0f172a;
+                    margin: 0 0 20px 0;
+                    font-size: 20px;
+                }}
+                .detail-row {{
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 12px;
+                    padding-bottom: 12px;
+                    border-bottom: 1px dashed #cbd5e1;
+                }}
+                .detail-row:last-child {{
+                    border-bottom: none;
+                    margin-bottom: 0;
+                    padding-bottom: 0;
+                }}
+                .detail-label {{
+                    color: #64748b;
+                    font-weight: 500;
+                }}
+                .detail-value {{
+                    font-weight: 600;
+                    color: #0f172a;
+                    text-align: right;
+                }}
+                .token-box {{
+                    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+                    color: white;
+                    padding: 30px;
+                    border-radius: 16px;
+                    text-align: center;
+                    margin-bottom: 30px;
+                    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.2);
+                }}
+                .token-box p {{ margin: 0; color: #94a3b8; font-size: 15px; text-transform: uppercase; letter-spacing: 1px; }}
+                .token-box h1 {{ margin: 10px 0; font-size: 48px; color: #38bdf8; letter-spacing: 2px; }}
+                .info-box {{
+                    background: #fef3c7;
+                    border: 1px solid #fde68a;
+                    padding: 20px;
+                    border-radius: 12px;
+                    margin-bottom: 30px;
+                }}
+                .btn {{
+                    display: inline-block;
+                    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+                    color: white;
+                    padding: 16px 32px;
+                    text-decoration: none;
+                    border-radius: 50px;
+                    font-weight: 600;
+                    font-size: 16px;
+                    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+                    text-align: center;
+                }}
+                .footer {{ text-align: center; padding-top: 30px; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: 14px; }}
             </style>
         </head>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0;">
-            <div style="background-color: #5f6fff; color: white; padding: 25px; text-align: center;">
-                <h1 style="margin: 0; font-size: 24px;">🏥 MediClues+</h1>
-                <p style="margin: 5px 0 0 0; font-size: 14px;">Your Health, Our Priority</p>
-            </div>
-            
-            <div style="padding: 30px;">
-                <p style="margin-top: 0;">Dear {patient_name},</p>
-                
-                <div style="background-color: #22c55e; color: white; padding: 12px; border-radius: 4px; text-align: center; font-weight: bold; margin-bottom: 20px;">
-                    ✓ Your Appointment Has Been Confirmed!
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>🏥 MediChain+</h1>
+                    <p>Your Health, Our Priority</p>
                 </div>
                 
-                <p>We're pleased to confirm your appointment at MediClues Hospital. Please find your appointment details below:</p>
-                
-                <div style="background-color: #f8fafc; border-left: 4px solid #5f6fff; padding: 20px; border-radius: 4px; margin-bottom: 25px;">
-                    <h2 style="color: #5f6fff; margin: 0 0 15px 0; font-size: 18px;">📋 Appointment Details</h2>
+                <div class="content">
+                    <p style="font-size: 18px; margin-top: 0;">Hi <strong>{patient_name}</strong>,</p>
                     
-                    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-                        <tr style="border-bottom: 1px solid #e2e8f0;">
-                            <td style="padding: 10px 0; width: 30%; color: #64748b;">👨‍⚕️ Doctor:</td>
-                            <td style="padding: 10px 0; font-weight: 500;">{details.get('doctorName')}</td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid #e2e8f0;">
-                            <td style="padding: 10px 0; color: #64748b;">🩺 Specialty:</td>
-                            <td style="padding: 10px 0; font-weight: 500;">{details.get('speciality')}</td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid #e2e8f0;">
-                            <td style="padding: 10px 0; color: #64748b;">📅 Date:</td>
-                            <td style="padding: 10px 0; font-weight: 500;">{details.get('date')}</td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid #e2e8f0;">
-                            <td style="padding: 10px 0; color: #64748b;">🕒 Time:</td>
-                            <td style="padding: 10px 0; font-weight: 500;">{details.get('time')}</td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid #e2e8f0;">
-                            <td style="padding: 10px 0; color: #64748b;">💰 Consultation Fee:</td>
-                            <td style="padding: 10px 0; font-weight: 500;">₹{details.get('fee')}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 10px 0; color: #64748b;">📍 Location:</td>
-                            <td style="padding: 10px 0; font-weight: 500; line-height: 1.4;">{details.get('hospitalLocation', 'MediClues Hospital')}</td>
-                        </tr>
-                    </table>
-                </div>
-                
-                <div style="background-color: #5f6fff; color: white; padding: 25px; border-radius: 4px; text-align: center; margin-bottom: 25px;">
-                    <p style="margin: 0; font-size: 14px;">Your Token Number</p>
-                    <h1 style="margin: 10px 0; font-size: 36px;">#{details.get('tokenNumber', 'N/A')}</h1>
-                    <p style="margin: 0; font-size: 12px; opacity: 0.9;">Please show this at the reception</p>
+                    <div class="success-banner">
+                        ✨ Your Appointment is Confirmed!
+                    </div>
+                    
+                    <div class="details-card">
+                        <h2>📋 Appointment Details</h2>
+                        <div class="detail-row"><span class="detail-label">👨‍⚕️ Doctor:</span> <span class="detail-value">{details.get('doctorName')}</span></div>
+                        <div class="detail-row"><span class="detail-label">🩺 Specialty:</span> <span class="detail-value">{details.get('speciality')}</span></div>
+                        <div class="detail-row"><span class="detail-label">📅 Date:</span> <span class="detail-value">{details.get('date')}</span></div>
+                        <div class="detail-row"><span class="detail-label">🕒 Time:</span> <span class="detail-value">{details.get('time')}</span></div>
+                        <div class="detail-row"><span class="detail-label">💰 Fee:</span> <span class="detail-value">₹{details.get('fee')}</span></div>
+                        <div class="detail-row"><span class="detail-label">🏥 Hospital:</span> <span class="detail-value">{hospital_name}</span></div>
+                    </div>
+                    
+                    <div class="token-box">
+                        <p>Your Token Number</p>
+                        <h1>#{details.get('tokenNumber', 'N/A')}</h1>
+                        <p style="font-size: 12px; color: #cbd5e1; margin-top: 5px; text-transform: none; letter-spacing: normal;">Show this token at the reception</p>
+                    </div>
+
+                    <div class="info-box">
+                        <p style="margin: 0 0 10px 0; font-weight: 700; color: #b45309;">⚠️ Important Information:</p>
+                        <ul style="margin: 0; padding-left: 20px; color: #92400e; font-size: 14px;">
+                            <li style="margin-bottom: 5px;">Please arrive 15 minutes before your appointment</li>
+                            <li style="margin-bottom: 5px;">Bring any relevant medical records or reports</li>
+                            <li>Carry a valid ID proof</li>
+                        </ul>
+                    </div>
+                    
+                    <div style="text-align: center;">
+                        <a href="https://maps.google.com/?q={details.get('hospitalLocation', 'Hospital')}" class="btn">📍 Get Directions</a>
+                    </div>
+
+                    <div class="footer">
+                        <p>© 2026 MediChain+. All rights reserved.</p>
+                        <p>If you have any questions, please contact our support team.</p>
+                    </div>
                 </div>
             </div>
         </body>
@@ -181,7 +258,7 @@ async def send_appointment_reschedule_notification(email: str, details: dict):
     <html>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0;">
             <div style="background-color: #ef4444; color: white; padding: 25px; text-align: center;">
-                <h1 style="margin: 0; font-size: 24px;">🏥 MediClues+</h1>
+                <h1 style="margin: 0; font-size: 24px;">🏥 MedClues+</h1>
                 <p style="margin: 5px 0 0 0; font-size: 14px;">Appointment Missed & Auto-Rescheduled</p>
             </div>
             

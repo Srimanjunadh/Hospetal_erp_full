@@ -150,16 +150,7 @@ export default function SuperAdminDashboard() {
 
   if (!mounted) return null;
 
-  // Gracefully ensure we display exactly 3 card items under "My Projects" like the design image
   const displayNodes = [...networkNodes];
-  const sampleHospitals = [
-    { name: "Apollo Med Center", location: "New Delhi", node_code: "1012", doctor_count: 14, staff_count: 32, patient_count: 240, subscription_status: "ACTIVE" },
-    { name: "City Care General", location: "Mumbai", node_code: "2088", doctor_count: 8, staff_count: 19, patient_count: 145, subscription_status: "ACTIVE" },
-    { name: "St. Jude Clinic", location: "Bangalore", node_code: "3051", doctor_count: 12, staff_count: 24, patient_count: 189, subscription_status: "ACTIVE" }
-  ];
-  while (displayNodes.length < 3) {
-    displayNodes.push(sampleHospitals[displayNodes.length]);
-  }
 
   // Sample tasks list matching the checklists in the design image
   const systemChecklist = [

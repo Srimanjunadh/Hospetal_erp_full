@@ -294,7 +294,10 @@ export default function PatientDashboard() {
                      <td style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>{new Date(t.created_at).toLocaleDateString()}</td>
                      <td style={{ textAlign: 'right' }}>
                         {t.status === 'pending' ? <Clock size={16} style={{ color: 'var(--text-secondary)', opacity: 0.5 }} /> : (
-                          <button onClick={() => window.open(`http://localhost:8000/${t.file_path}`, '_blank')} className="btn-outline-premium" style={{ padding: '6px 12px', fontSize: '0.7rem' }}>PDF</button>
+                          <button onClick={() => {
+                             const backendBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api').replace('/api', '');
+                             window.open(`${backendBase}/${t.file_path}`, '_blank');
+                           }} className="btn-outline-premium" style={{ padding: '6px 12px', fontSize: '0.7rem' }}>PDF</button>
                         )}
                      </td>
                    </tr>

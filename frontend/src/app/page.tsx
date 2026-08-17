@@ -11,6 +11,7 @@ import { useState } from "react";
 
 export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const pmsUrl = process.env.NEXT_PUBLIC_PMS_URL || 'http://localhost:5173';
 
   return (
     <div style={{ minHeight: '100vh', background: '#fafcff', color: '#0f172a', fontFamily: 'Inter, sans-serif', overflowX: 'hidden' }}>
@@ -25,11 +26,11 @@ export default function Home() {
 
         {/* Center Links (Desktop) */}
         <div className="desktop-nav" style={{ display: 'flex', gap: '2rem', alignItems: 'center', fontWeight: 600, fontSize: '0.9rem', color: '#475569' }}>
-          <Link href="http://localhost:5173" style={{ color: '#2563eb', borderBottom: '2px solid #2563eb', paddingBottom: '2px', textDecoration: 'none' }}>Home</Link>
+          <Link href={pmsUrl} style={{ color: '#2563eb', borderBottom: '2px solid #2563eb', paddingBottom: '2px', textDecoration: 'none' }}>Home</Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>Modules <ChevronDown size={14} /></div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>Solutions <ChevronDown size={14} /></div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>Resources <ChevronDown size={14} /></div>
-          <Link href="http://localhost:5173" style={{ color: 'inherit', textDecoration: 'none' }}>PMS Portal</Link>
+          <Link href={pmsUrl} style={{ color: 'inherit', textDecoration: 'none' }}>PMS Portal</Link>
         </div>
 
         {/* Right Actions */}
@@ -80,7 +81,7 @@ export default function Home() {
               <Link href="/login" style={{ padding: '14px 28px', background: '#2563eb', color: '#fff', borderRadius: '6px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', boxShadow: '0 4px 14px rgba(37, 99, 235, 0.25)' }}>
                 Enter the Hub <ArrowRight size={18} />
               </Link>
-              <Link href="http://localhost:5173" style={{ padding: '14px 28px', background: '#fff', border: '1px solid #cbd5e1', color: '#2563eb', borderRadius: '6px', fontWeight: 600, textDecoration: 'none' }}>
+              <Link href={pmsUrl} style={{ padding: '14px 28px', background: '#fff', border: '1px solid #cbd5e1', color: '#2563eb', borderRadius: '6px', fontWeight: 600, textDecoration: 'none' }}>
                 Login to PMS Portal
               </Link>
               <div style={{ padding: '14px 28px', background: '#eff6ff', color: '#2563eb', borderRadius: '6px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -158,7 +159,7 @@ export default function Home() {
             { title: "Nurse Terminal", icon: <Users2 size={24} color="#9333ea" />, bg: '#f3e8ff', desc: "Patient monitoring & care coordination", path: "/login?role=nurse" },
             { title: "Laboratory Hub", icon: <FlaskConical size={24} color="#ea580c" />, bg: '#ffedd5', desc: "Diagnostics workflow & lab management", path: "/login?role=lab" },
             { title: "Hospital ERP", icon: <Building2 size={24} color="#e11d48" />, bg: '#ffe4e6', desc: "Complete facility management suite", path: "/login?role=hospital_admin" },
-            { title: "PMS Ecosystem", icon: <Globe size={24} color="#0284c7" />, bg: '#e0f2fe', desc: "Integrated practice management solution", path: "http://localhost:5173" },
+            { title: "PMS Ecosystem", icon: <Globe size={24} color="#0284c7" />, bg: '#e0f2fe', desc: "Integrated practice management solution", path: pmsUrl },
           ].map((node, i) => (
             <Link key={i} href={node.path} style={{ textDecoration: 'none', color: 'inherit' }}>
               <motion.div

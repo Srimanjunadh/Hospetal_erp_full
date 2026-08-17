@@ -330,7 +330,10 @@ function NurseDashboardContent() {
                              <p style={{ fontSize: '0.7rem', fontWeight: 500, color: 'var(--text-secondary)', marginTop: '2px' }}>{t.status === 'pending' ? 'Pending Lab Verification' : `Released: ${new Date(t.created_at).toLocaleDateString()}`}</p>
                            </div>
                            {t.status === 'pending' ? <Clock size={16} color="var(--text-secondary)" /> : (
-                             <button type="button" onClick={() => window.open(`http://localhost:8000/${t.file_path}`, '_blank')} className="btn-primary-premium" style={{ padding: '6px 12px', fontSize: '0.75rem', borderRadius: '20px' }}>View PDF</button>
+                             <button type="button" onClick={() => {
+                                const backendBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api').replace('/api', '');
+                                window.open(`${backendBase}/${t.file_path}`, '_blank');
+                              }} className="btn-primary-premium" style={{ padding: '6px 12px', fontSize: '0.75rem', borderRadius: '20px' }}>View PDF</button>
                            )}
                          </div>
                       </div>
